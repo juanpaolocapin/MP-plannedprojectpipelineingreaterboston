@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Planned Projects in Greater Boston</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    #map { width: 100%; height: 100%; }
+    .mapboxgl-popup {
+      max-width: 300px;
+      font: 12px/1.4 Arial, sans-serif;
+    }
+    .map-title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 6px 12px;
+      font-size: 18px;
+      border-radius: 4px;
+      z-index: 2;
+    }
+    .map-note {
+      position: absolute;
+      bottom: 36px;
+      left: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+      z-index: 2;
+    }
+    .basemap-switcher {
+      position: absolute;
+      top: 50px;
+      right: 10px;
+      background: white;
+      border-radius: 4px;
+      font-size: 13px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      padding: 6px;
+      z-index: 2;
+    }
+    .basemap-switcher button {
+      background: none;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .basemap-switcher button.active {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+    .filter-legend-box {
+      position: absolute;
+      bottom: 20px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      font-size: 13px;
+      border-radius: 5px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.3);
+      z-index: 2;
+    }
+    .filter-legend-box .row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .filter-legend-box input[type="checkbox"] {
+      margin-right: 6px;
+    }
+    .filter-legend-box svg {
+      margin: 0 6px;
+    }
+    .mapboxgl-ctrl-geocoder {
+      min-width: 250px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="map-title">Planned Projects in Greater Boston</div>
+  <div class="map-note">Created for Marcus Partners</div>
+  <div class="basemap-switcher">
+    <button id="lightBtn">Light</button>
+    <button id="darkBtn" class="active">Dark</button>
+  </div>
+  <div class="filter-legend-box" id="filterLegend">
+    <div class="row">
+      <input type="checkbox" class="status-filter" value="Planned" checked>
+      <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#d7191c" stroke="white" stroke-width="2"/></svg>
+      Planned
+    </div>
+    <div class="row">
+      <input type="checkbox" class="status-filter" value="Under Construction" checked>
+      <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#fdae61" stroke="white" stroke-width="2"/></svg>
+      Under Construction
+    </div>
+    <div class="row">
+      <input type="checkbox" class="status-filter" value="Lease-Up" checked>
+      <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#1a9641" stroke="white" stroke-width="2"/></svg>
+      Lease-Up
+    </div>
+  </div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoianVhbjEyMjciLCJhIjoiY2tvMmlhZ3FlMDZuYjJubzdlanZlY3A5dSJ9.b0Q5WdIxWsWFXnhzm77m5w';
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-71.1, 42.36],
+      zoom: 10
+    });
+
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl: mapboxgl,
+      marker: false,
+      placeholder: "Search address or place"
+    });
+    map.addControl(geocoder, 'top-left');
+
+    let searchMarkers = [];
+    let projectMarkers = [];
+
+    geocoder.on('result', (e) => {
+      const coords = e.result.center;
+      const address = e.result.place_name;
+
+      const popup = new mapboxgl.Popup({ offset: 25 }).setText(address);
+
+      const marker = new mapboxgl.Marker({ color: '#4264fb' })
+        .setLngLat(coords)
+        .setPopup(popup)
+        .addTo(map);
+
+      marker.togglePopup();
+      searchMarkers.push(marker);
+
+      map.flyTo({ center: coords, zoom: 15 });
+    });
+
+    map.on('click', () => {
+      searchMarkers.forEach(marker => marker.remove());
+      searchMarkers = [];
+    });
+
+    document.getElementById("lightBtn").onclick = () => {
+      map.setStyle("mapbox://styles/mapbox/light-v11");
+      setActive("lightBtn");
+    };
+    document.getElementById("darkBtn").onclick = () => {
+      map.setStyle("mapbox://styles/mapbox/dark-v11");
+      setActive("darkBtn");
+    };
+
+    function setActive(id) {
+      document.querySelectorAll('.basemap-switcher button').forEach(btn => btn.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    }
+
+    function createSvgIcon(label, fillColor) {
+      const size = 40;
+      const strokeWidth = 4;
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+          <circle cx="${size/2}" cy="${size/2}" r="${(size - strokeWidth)/2}" fill="${fillColor}" stroke="white" stroke-width="${strokeWidth}" />
+          <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-size="16" fill="white" font-family="Arial" font-weight="bold">${label}</text>
+        </svg>`;
+      return 'data:image/svg+xml;base64,' + btoa(svg);
+    }
+
+    const statusColors = {
+      "Planned": "#d7191c",
+      "Under Construction": "#fdae61",
+      "Lease-Up": "#1a9641"
+    };
+
+    let allData = [];
+
+    fetch("https://opensheet.elk.sh/1sNCiX5Uboa-7wei2H_IxNsgtUYO53s56fjPiyc3Uaxg/Sheet1")
+      .then(res => res.json())
+      .then(data => {
+        allData = data;
+        renderProjectMarkers();
+      });
+
+    function renderProjectMarkers() {
+      projectMarkers.forEach(marker => marker.remove());
+      projectMarkers = [];
+
+      const selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.value);
+
+      const coordMap = {};
+      const bounds = new mapboxgl.LngLatBounds();
+
+      allData.forEach(row => {
+        if (!row.lat || !row.lon || !selectedStatuses.includes(row.status)) return;
+        const lat = parseFloat(row.lat);
+        const lon = parseFloat(row.lon);
+        const key = `${lat},${lon}`;
+        if (!coordMap[key]) coordMap[key] = [];
+        coordMap[key].push(row);
+      });
+
+      Object.entries(coordMap).forEach(([coord, rows]) => {
+        const [lat, lon] = coord.split(',').map(parseFloat);
+        bounds.extend([lon, lat]);
+
+        const popupContent = rows.map(row => `
+          <div style="margin-bottom:8px;">
+            <b>🏷️ Site No:</b> ${row.site_no}<br>
+            🏠 <b>Property:</b> ${row["property _name"]}<br>
+            📍 <b>Address:</b> ${row.address}, ${row.city}, ${row.state} ${row.zip}<br>
+            🏗️ <b>Status:</b> ${row.status}<br>
+            🧮 <b>Units:</b> ${row.units}<br>
+            📊 <b>Submarket:</b> ${row.submarket}<br>
+            📅 <b>Forecasted Completion:</b> ${row.forecasted_completion_date}<br>
+            🚪 <b>Start of Rent-Up:</b> ${row.start_of_rent_up || row["start_of_rent-up"] || ""}<br>
+            📆 <b>First Date:</b> ${row.first_date}<br>
+            👤 <b>Owner:</b> ${row.owner}
+          </div>
+        `).join('<hr>');
+
+        const label = rows[0].site_no || "?";
+        const status = rows[0].status || "Other";
+        const color = statusColors[status] || "#888";
+
+        const el = document.createElement('div');
+        el.className = 'marker';
+        el.style.backgroundImage = `url('${createSvgIcon(label, color)}')`;
+        el.style.width = '40px';
+        el.style.height = '40px';
+        el.style.backgroundSize = 'cover';
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([lon, lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupContent))
+          .addTo(map);
+
+        projectMarkers.push(marker);
+      });
+
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { padding: 60 });
+      }
+    }
+
+    // Re-render markers on filter toggle
+    document.querySelectorAll('.status-filter').forEach(cb => {
+      cb.addEventListener('change', renderProjectMarkers);
+    });
+  </script>
+</body>
+</html>
