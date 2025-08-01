@@ -9,96 +9,84 @@
   <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css" rel="stylesheet" />
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
-    #map { width: 100%; height: 100%; }
-    .mapboxgl-popup {
-      max-width: 300px;
-      font: 12px/1.4 Arial, sans-serif;
-    }
-    .map-title {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 6px 12px;
-      font-size: 18px;
-      border-radius: 4px;
-      z-index: 2;
-    }
-    .map-note {
-      position: absolute;
-      bottom: 36px;
-      left: 10px;
-      background: rgba(255,255,255,0.8);
-      padding: 2px 8px;
-      font-size: 11px;
-      border-radius: 3px;
-      z-index: 2;
-    }
-    .basemap-switcher {
-      position: absolute;
-      top: 50px;
-      right: 10px;
-      background: white;
-      border-radius: 4px;
-      font-size: 13px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      padding: 6px;
-      z-index: 2;
-    }
-    .basemap-switcher button {
-      background: none;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    .basemap-switcher button.active {
-      font-weight: bold;
-      text-decoration: underline;
-    }
-    .filter-legend-box {
-      position: absolute;
-      bottom: 20px;
-      right: 10px;
-      background: white;
-      padding: 10px;
-      font-size: 13px;
-      border-radius: 5px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.3);
-      z-index: 2;
-    }
-    .filter-legend-box .row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 6px;
-    }
-    .filter-legend-box input[type="checkbox"] {
-      margin-right: 6px;
-    }
-    .filter-legend-box svg {
-      margin: 0 6px;
-    }
-    .mapboxgl-ctrl-geocoder {
-      min-width: 250px;
-      margin: 10px;
-    }
+    html, body { margin:0; padding:0; height:100%; font-family:Arial,sans-serif; }
+    #map { position:absolute; width:100%; height:100%; }
+    .map-title { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,0.6); color:white; padding:6px 12px; font-size:18px;
+      border-radius:4px; z-index:2; }
+    .map-note { position:absolute; bottom:36px; left:10px;
+      background:rgba(255,255,255,0.8); padding:2px 8px; font-size:11px;
+      border-radius:3px; z-index:2; }
+    .control-stack { position:absolute; top:60px; left:10px;
+      display:flex; flex-direction:column; gap:10px; z-index:3; max-width:240px; }
+    .control-box { background:rgba(255,255,255,0.7); padding:8px; font-size:13px;
+      border-radius:5px; box-shadow:0 0 8px rgba(0,0,0,0.2); }
+    .control-box button, .control-box select { font-size:13px; }
+    .basemap-switcher button { background:none; border:none; padding:5px 10px; cursor:pointer; }
+    .basemap-switcher button.active { font-weight:bold; text-decoration:underline; }
+    .filter-legend-box .title { font-weight:bold; margin-bottom:6px; }
+    .filter-legend-box .row { display:flex; align-items:center; margin-bottom:6px; }
+    .filter-legend-box input { margin-right:6px; }
+    .filter-legend-box svg { margin:0 6px; }
+    .mapboxgl-ctrl-geocoder { min-width:250px; margin:10px; }
+    .detail-panel { position:absolute; top:50%; left:-340px; transform:translateY(-50%);
+      background:white; padding:12px; width:320px; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+      font-size:13px; overflow-y:auto; max-height:80%; z-index:3; transition:left 0.4s ease; }
+    .detail-panel.visible { left:10px; }
+    .detail-header { display:flex; justify-content:space-between; align-items:center;
+      font-weight:bold; font-size:15px; margin-bottom:10px; }
+    .close-btn { background:none; border:none; font-size:18px; cursor:pointer; color:#666; }
+    .detail-panel hr { margin:8px 0; }
+    .summary-box { position:absolute; top:60px; right:10px; background:rgba(255,255,255,0.95);
+      padding:10px; border-radius:5px; font-size:13px; box-shadow:0 0 8px rgba(0,0,0,0.2); z-index:3; }
+    .summary-box table { width:100%; border-collapse:collapse; }
+    .summary-box th, .summary-box td { padding:4px 8px; text-align:left; }
+    .summary-box th { font-weight:bold; border-bottom:2px solid #555; }
+    .summary-box tr:nth-child(even) { background-color:#f0f0f0; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div class="map-title">Planned Project Pipeline in Greater Boston</div>
   <div class="map-note">Created for Marcus Partners</div>
-  <div class="basemap-switcher">
-    <button id="lightBtn">Light</button>
-    <button id="darkBtn" class="active">Dark</button>
+
+  <div class="control-stack">
+    <div class="control-box basemap-switcher">
+      <div><strong>Theme</strong></div>
+      <button id="lightBtn">Light</button>
+      <button id="darkBtn" class="active">Dark</button>
+    </div>
+    <div class="control-box toggle-label">
+      <div><strong>Show label:</strong></div>
+      <select id="labelField">
+        <option value="site_no">Site No</option>
+        <option value="units">Units</option>
+      </select>
+    </div>
+    <div class="control-box filter-legend-box" id="filterLegend">
+      <div class="title">Legend</div>
+    </div>
   </div>
-  <div class="filter-legend-box" id="filterLegend"></div>
+
+  <div class="summary-box">
+    <table id="summaryTable">
+      <thead>
+        <tr><th>Development Status</th><th>Units</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="detail-panel" id="propertyDetail">
+    <div class="detail-header">
+      Project Details
+      <button class="close-btn" onclick="hideDetailPanel()">✖</button>
+    </div>
+    <div id="propertyDetailContent"></div>
+  </div>
 
   <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoianVhbjEyMjciLCJhIjoiY2tvMmlhZ3FlMDZuYjJubzdlanZlY3A5dSJ9.b0Q5WdIxWsWFXnhzm77m5w';
-
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/dark-v11',
@@ -107,63 +95,12 @@
     });
 
     const geocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
-      mapboxgl: mapboxgl,
-      marker: false,
-      placeholder: "Search address or place"
+      accessToken: mapboxgl.accessToken, mapboxgl, marker:false,
+      placeholder:"Search address or place"
     });
     map.addControl(geocoder, 'top-left');
 
-    let searchMarkers = [];
-    let projectMarkers = [];
-
-    geocoder.on('result', (e) => {
-      const coords = e.result.center;
-      const address = e.result.place_name;
-
-      const popup = new mapboxgl.Popup({ offset: 25 }).setText(address);
-
-      const marker = new mapboxgl.Marker({ color: '#4264fb' })
-        .setLngLat(coords)
-        .setPopup(popup)
-        .addTo(map);
-
-      marker.togglePopup();
-      searchMarkers.push(marker);
-
-      map.flyTo({ center: coords, zoom: 15 });
-    });
-
-    map.on('click', () => {
-      searchMarkers.forEach(marker => marker.remove());
-      searchMarkers = [];
-    });
-
-    document.getElementById("lightBtn").onclick = () => {
-      map.setStyle("mapbox://styles/mapbox/light-v11");
-      setActive("lightBtn");
-    };
-    document.getElementById("darkBtn").onclick = () => {
-      map.setStyle("mapbox://styles/mapbox/dark-v11");
-      setActive("darkBtn");
-    };
-
-    function setActive(id) {
-      document.querySelectorAll('.basemap-switcher button').forEach(btn => btn.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-    }
-
-    function createSvgIcon(label, fillColor) {
-      const size = 40;
-      const strokeWidth = 4;
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-          <circle cx="${size/2}" cy="${size/2}" r="${(size - strokeWidth)/2}" fill="${fillColor}" stroke="white" stroke-width="${strokeWidth}" />
-          <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-size="16" fill="white" font-family="Arial" font-weight="bold">${label}</text>
-        </svg>`;
-      return 'data:image/svg+xml;base64,' + btoa(svg);
-    }
-
+    let projectMarkers = [], labelField="site_no", allData=[], statusColors={};
     const defaultColors = {
       "Planned": "#d7191c",
       "Under Construction": "#fdae61",
@@ -171,104 +108,168 @@
       "Prospective": "#2b83ba"
     };
 
-    let statusColors = {};
-    let allData = [];
+    document.getElementById("lightBtn").onclick = ()=>{ map.setStyle("mapbox://styles/mapbox/light-v11"); setActive("lightBtn"); };
+    document.getElementById("darkBtn").onclick = ()=>{ map.setStyle("mapbox://styles/mapbox/dark-v11"); setActive("darkBtn"); };
+    function setActive(id){
+      document.querySelectorAll('.basemap-switcher button').forEach(b=>b.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    }
+
+    function createSvgIcon(label, fill){
+      const s=30, sw=3;
+      const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">
+        <circle cx="${s/2}" cy="${s/2}" r="${(s-sw)/2}" fill="${fill}" stroke="white" stroke-width="${sw}" />
+        <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="white" font-family="Arial" font-weight="bold">${label}</text>
+      </svg>`;
+      return 'data:image/svg+xml;base64,'+btoa(svg);
+    }
 
     fetch("https://opensheet.elk.sh/1sNCiX5Uboa-7wei2H_IxNsgtUYO53s56fjPiyc3Uaxg/Sheet1")
-      .then(res => res.json())
-      .then(data => {
+      .then(r=>r.json())
+      .then(data=>{
         allData = data;
-
-        // Determine which statuses are present
-        const presentStatuses = [...new Set(data.map(d => d.status).filter(Boolean))];
-        statusColors = Object.fromEntries(
-          presentStatuses.map(status => [status, defaultColors[status] || "#888"])
-        );
-
-        buildFilterLegend(presentStatuses);
+        const present = [...new Set(data.map(d=>d.status).filter(Boolean))];
+        statusColors = Object.fromEntries(present.map(s=>[s,defaultColors[s]||"#888"]));
+        buildFilterLegend(present);
         renderProjectMarkers();
+        updateSummaryTable();
       });
 
-    function buildFilterLegend(statuses) {
-      const container = document.getElementById('filterLegend');
-      container.innerHTML = '';
-      statuses.forEach(status => {
-        const color = statusColors[status];
-        const row = document.createElement('div');
-        row.className = 'row';
-        row.innerHTML = `
-          <input type="checkbox" class="status-filter" value="${status}" checked>
-          <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/></svg>
-          ${status}
-        `;
-        container.appendChild(row);
+    function buildFilterLegend(statuses){
+      const c=document.getElementById('filterLegend');
+      statuses.forEach(s=>{
+        const color=statusColors[s];
+        const row=document.createElement('div'); row.className='row';
+        row.innerHTML=`<input type="checkbox" class="status-filter" value="${s}" checked>
+          <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/></svg>${s}`;
+        c.appendChild(row);
       });
-
-      document.querySelectorAll('.status-filter').forEach(cb => {
-        cb.addEventListener('change', renderProjectMarkers);
+      document.querySelectorAll('.status-filter').forEach(cb=>{
+        cb.addEventListener('change',()=>{ renderProjectMarkers(); updateSummaryTable(); });
       });
     }
 
-    function renderProjectMarkers() {
-      projectMarkers.forEach(marker => marker.remove());
-      projectMarkers = [];
+    function renderProjectMarkers(){
+      projectMarkers.forEach(m=>m.remove()); projectMarkers=[];
+      if(map.getSource('leader-lines')) map.removeLayer('leader-lines');
+      if(map.getSource('leader-lines')) map.removeSource('leader-lines');
 
-      const selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb => cb.value);
-
-      const coordMap = {};
-      const bounds = new mapboxgl.LngLatBounds();
-
-      allData.forEach(row => {
-        if (!row.lat || !row.lon || !selectedStatuses.includes(row.status)) return;
-        const lat = parseFloat(row.lat);
-        const lon = parseFloat(row.lon);
-        const key = `${lat},${lon}`;
-        if (!coordMap[key]) coordMap[key] = [];
-        coordMap[key].push(row);
+      const selected = Array.from(document.querySelectorAll('.status-filter:checked')).map(cb=>cb.value);
+      const mapCoord={};
+      allData.forEach(r=>{
+        if(!r.lat||!r.lon||!selected.includes(r.status)) return;
+        const key=`${r.lat},${r.lon}`;
+        if(!mapCoord[key]) mapCoord[key]=[];
+        mapCoord[key].push(r);
       });
 
-      Object.entries(coordMap).forEach(([coord, rows]) => {
-        const [lat, lon] = coord.split(',').map(parseFloat);
-        bounds.extend([lon, lat]);
+      const bounds=new mapboxgl.LngLatBounds();
+      const lines = [];
 
-        const popupContent = rows.map(row => `
-          <div style="margin-bottom:8px;">
-            <b>🏷️ Site No:</b> ${row.site_no}<br>
-            🏠 <b>Property:</b> ${row["property _name"]}<br>
-            📍 <b>Address:</b> ${row.address}, ${row.city}, ${row.state} ${row.zip}<br>
-            🏗️ <b>Status:</b> ${row.status}<br>
-            🧮 <b>Units:</b> ${row.units}<br>
-            📊 <b>Submarket:</b> ${row.submarket}<br>
-            📅 <b>Forecasted Completion:</b> ${row.forecasted_completion_date}<br>
-            🚪 <b>Start of Rent-Up:</b> ${row.start_of_rent_up || row["start_of_rent-up"] || ""}<br>
-            📆 <b>First Date:</b> ${row.first_date}<br>
-            👤 <b>Owner:</b> ${row.owner}
-          </div>
-        `).join('<hr>');
+      Object.entries(mapCoord).forEach(([coord, rows])=>{
+        const [lat,lon]=coord.split(',').map(parseFloat);
+        bounds.extend([lon,lat]);
 
-        const label = rows[0].site_no || "?";
-        const status = rows[0].status || "Other";
-        const color = statusColors[status] || "#888";
+        rows.forEach((r,i)=>{
+          const offsetDistance = 0.00015;
+          const angle = (i * 360 / rows.length) * Math.PI / 180;
+          const offsetLon = lon + Math.cos(angle) * offsetDistance * 0.6;
 
-        const el = document.createElement('div');
-        el.className = 'marker';
-        el.style.backgroundImage = `url('${createSvgIcon(label, color)}')`;
-        el.style.width = '40px';
-        el.style.height = '40px';
-        el.style.backgroundSize = 'cover';
+          const zoomFactor = map.getZoom();
+          const northOffset = 0.00005 * (zoomFactor - 10);
+          const offsetLat = lat + Math.sin(angle) * offsetDistance * 1.4 + northOffset;
 
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat([lon, lat])
-          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(popupContent))
-          .addTo(map);
+          const lbl=r[labelField]||"?";
+          const cl=statusColors[r.status]||"#888";
+          const el=document.createElement('div');
+          el.className='marker';
+          el.style.backgroundImage=`url('${createSvgIcon(lbl,cl)}')`;
+          el.style.width='30px'; el.style.height='30px'; el.style.backgroundSize='cover';
+          el.addEventListener('click', () => openDetail(rows));
 
-        projectMarkers.push(marker);
+          const mk=new mapboxgl.Marker(el).setLngLat([offsetLon, offsetLat]).addTo(map);
+          projectMarkers.push(mk);
+
+          lines.push({
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: [[lon, lat], [offsetLon, offsetLat]]
+            },
+            properties: {}
+          });
+        });
       });
 
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { padding: 60 });
+      if(!bounds.isEmpty()) map.fitBounds(bounds,{padding:60});
+
+      map.addSource('leader-lines', {
+        type: 'geojson',
+        data: {
+          type: "FeatureCollection",
+          features: lines
+        }
+      });
+      map.addLayer({
+        id: 'leader-lines',
+        type: 'line',
+        source: 'leader-lines',
+        paint: {
+          'line-color': '#aaa',
+          'line-width': 1,
+          'line-dasharray': [2,2]
+        }
+      });
+    }
+
+    function updateSummaryTable(){
+      const sum = {};
+      allData.forEach(r=>{
+        const st=r.status; const u=parseInt(r.units)||0;
+        if(st) sum[st]=(sum[st]||0)+u;
+      });
+      const tb=document.querySelector("#summaryTable tbody"); tb.innerHTML="";
+      Object.keys(sum).forEach(s=>{
+        tb.innerHTML+=`<tr><td>${s}</td><td>${sum[s].toLocaleString()}</td></tr>`;
+      });
+    }
+
+    function openDetail(rows){
+      const content=document.getElementById('propertyDetailContent');
+      let html='';
+      if(rows.length>1){
+        html+=`<label>Select project: <select id="selectProject"></select></label><br><hr>`;
       }
+      rows.forEach((r,i)=>{
+        html+=`<div class="project-info" data-index="${i}" style="display:${i===0?'block':'none'}">
+          <b>🏷️ Site No:</b> ${r.site_no}<br>
+          🏠 <b>Property:</b> ${r["property _name"]}<br>
+          📍 <b>Address:</b> ${r.address}, ${r.city}, ${r.state} ${r.zip}<br>
+          🏗️ <b>Status:</b> ${r.status}<br>
+          🧮 <b>Units:</b> ${r.units}<br>
+          📊 <b>Submarket:</b> ${r.submarket}<br>
+          📅 <b>Forecasted Completion:</b> ${r.forecasted_completion_date}<br>
+          📆 <b>Start of Rent-Up:</b> ${r.start_of_rent_up || r["start_of_rent-up"] || ""}<br>
+          📅 <b>First Date:</b> ${r.first_date}<br>
+          👤 <b>Owner:</b> ${r.owner}
+        </div>`;
+      });
+      content.innerHTML = html;
+      if(rows.length>1){
+        const sel = document.getElementById('selectProject');
+        rows.forEach((r,i)=> sel.add(new Option(r.site_no, i)));
+        sel.addEventListener('change',()=>{
+          const idx = parseInt(sel.value);
+          content.querySelectorAll('.project-info').forEach(div=>{
+            div.style.display = (parseInt(div.getAttribute('data-index'))===idx)?'block':'none';
+          });
+        });
+      }
+      document.getElementById('propertyDetail').classList.add('visible');
     }
+
+    function hideDetailPanel(){ document.getElementById('propertyDetail').classList.remove('visible'); }
+    document.getElementById("labelField").addEventListener("change", e => { labelField=e.target.value; renderProjectMarkers(); });
   </script>
 </body>
 </html>
