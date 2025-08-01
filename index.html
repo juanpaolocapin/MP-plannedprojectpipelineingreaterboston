@@ -17,18 +17,38 @@
     .map-note { position:absolute; bottom:36px; left:10px;
       background:rgba(255,255,255,0.8); padding:2px 8px; font-size:11px;
       border-radius:3px; z-index:2; }
-    .control-stack { position:absolute; top:60px; left:10px;
-      display:flex; flex-direction:column; gap:10px; z-index:3; max-width:240px; }
+    .control-stack { position:absolute; top:20px; left:10px;
+      display:flex; flex-direction:column; gap:10px; z-index:3; max-width:300px; }
     .control-box { background:rgba(255,255,255,0.7); padding:8px; font-size:13px;
       border-radius:5px; box-shadow:0 0 8px rgba(0,0,0,0.2); }
     .control-box button, .control-box select { font-size:13px; }
     .basemap-switcher button { background:none; border:none; padding:5px 10px; cursor:pointer; }
     .basemap-switcher button.active { font-weight:bold; text-decoration:underline; }
-    .filter-legend-box .title { font-weight:bold; margin-bottom:6px; }
-    .filter-legend-box .row { display:flex; align-items:center; margin-bottom:6px; }
-    .filter-legend-box input { margin-right:6px; }
-    .filter-legend-box svg { margin:0 6px; }
+
+    .filter-legend-box .header-row,
+.filter-legend-box .row {
+  display: grid;
+  grid-template-columns: 22px 18px 1fr 50px; /* slightly wider last column */
+  align-items: center;
+  gap: 4px;
+}
+    .filter-legend-box .header-row {
+      font-weight:bold;
+      border-bottom:1px solid #ccc;
+      margin-bottom:6px;
+      padding-bottom:4px;
+    }
+    .filter-legend-box .row {
+      margin-bottom:6px;
+    }
+    .filter-legend-box input { margin:0; }
+    .filter-legend-box svg { width:14px; height:14px; }
+    .filter-legend-box .status-text { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .filter-legend-box .units { text-align:right; font-variant-numeric:tabular-nums; }
+
     .mapboxgl-ctrl-geocoder { min-width:250px; margin:10px; }
+    .mapboxgl-ctrl-top-right .mapboxgl-ctrl-geocoder { margin:10px; }
+
     .detail-panel { position:absolute; top:50%; left:-340px; transform:translateY(-50%);
       background:white; padding:12px; width:320px; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.3);
       font-size:13px; overflow-y:auto; max-height:80%; z-index:3; transition:left 0.4s ease; }
@@ -37,12 +57,6 @@
       font-weight:bold; font-size:15px; margin-bottom:10px; }
     .close-btn { background:none; border:none; font-size:18px; cursor:pointer; color:#666; }
     .detail-panel hr { margin:8px 0; }
-    .summary-box { position:absolute; top:60px; right:10px; background:rgba(255,255,255,0.95);
-      padding:10px; border-radius:5px; font-size:13px; box-shadow:0 0 8px rgba(0,0,0,0.2); z-index:3; }
-    .summary-box table { width:100%; border-collapse:collapse; }
-    .summary-box th, .summary-box td { padding:4px 8px; text-align:left; }
-    .summary-box th { font-weight:bold; border-bottom:2px solid #555; }
-    .summary-box tr:nth-child(even) { background-color:#f0f0f0; }
   </style>
 </head>
 <body>
@@ -64,17 +78,14 @@
       </select>
     </div>
     <div class="control-box filter-legend-box" id="filterLegend">
-      <div class="title">Legend</div>
+      <div class="header-row">
+        <div></div>
+        <div>Development Status</div>
+        <div></div>
+        <div class="units">Units</div>
+      </div>
+      <!-- Legend rows will be injected dynamically by JS -->
     </div>
-  </div>
-
-  <div class="summary-box">
-    <table id="summaryTable">
-      <thead>
-        <tr><th>Development Status</th><th>Units</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
   </div>
 
   <div class="detail-panel" id="propertyDetail">
@@ -98,7 +109,36 @@
       accessToken: mapboxgl.accessToken, mapboxgl, marker:false,
       placeholder:"Search address or place"
     });
-    map.addControl(geocoder, 'top-left');
+    map.addControl(geocoder, 'top-right');
+let searchMarker = null;
+let searchPopup = null;
+
+geocoder.on('result', e => {
+  const { center, place_name } = e.result;
+
+  // Remove any existing marker and popup
+  if (searchMarker) searchMarker.remove();
+  if (searchPopup) searchPopup.remove();
+
+  // Add a new marker
+  searchMarker = new mapboxgl.Marker({ color: 'blue' })
+    .setLngLat(center)
+    .addTo(map);
+
+  // Add a popup with address and close button
+  searchPopup = new mapboxgl.Popup({ offset: 25 }) // let default close button appear
+  .setLngLat(center)
+  .setHTML(`<strong>${place_name}</strong>`)
+  .addTo(map);
+
+});
+map.on('click', () => {
+  if (searchMarker) searchMarker.remove();
+  if (searchPopup) searchPopup.remove();
+  searchMarker = null;
+  searchPopup = null;
+});
+
 
     let projectMarkers = [], labelField="site_no", allData=[], statusColors={};
     const defaultColors = {
@@ -136,18 +176,66 @@
       });
 
     function buildFilterLegend(statuses){
-      const c=document.getElementById('filterLegend');
-      statuses.forEach(s=>{
-        const color=statusColors[s];
-        const row=document.createElement('div'); row.className='row';
-        row.innerHTML=`<input type="checkbox" class="status-filter" value="${s}" checked>
-          <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="${color}" stroke="white" stroke-width="2"/></svg>${s}`;
-        c.appendChild(row);
+    const c=document.getElementById('filterLegend');
+    // Remove old rows (if any)
+    c.querySelectorAll('.row').forEach(r=>r.remove());
+
+    // Aggregate units by status
+    const statusUnitCount = {};
+    allData.forEach(r => {
+      const s = r.status;
+      const u = parseInt(r.units)||0;
+      if(s) statusUnitCount[s] = (statusUnitCount[s]||0) + u;
+    });
+
+    statuses.forEach(s => {
+      const color = statusColors[s] || "#888";
+      const units = statusUnitCount[s] || 0;
+
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'status-filter';
+      checkbox.value = s;
+      checkbox.checked = true;
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '14');
+      svg.setAttribute('height', '14');
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', 12);
+      circle.setAttribute('cy', 12);
+      circle.setAttribute('r', 6);
+      circle.setAttribute('fill', color);
+      svg.appendChild(circle);
+
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'status-text';
+      statusDiv.textContent = s;
+
+      const unitsDiv = document.createElement('div');
+      unitsDiv.className = 'units';
+      unitsDiv.textContent = units.toLocaleString();
+
+      row.appendChild(checkbox);
+      row.appendChild(svg);
+      row.appendChild(statusDiv);
+      row.appendChild(unitsDiv);
+
+      c.appendChild(row);
+    });
+
+    // Add event listeners after DOM insertion
+    document.querySelectorAll('.status-filter').forEach(cb => {
+      cb.addEventListener('change', () => {
+        renderProjectMarkers();
+        updateSummaryTable();
       });
-      document.querySelectorAll('.status-filter').forEach(cb=>{
-        cb.addEventListener('change',()=>{ renderProjectMarkers(); updateSummaryTable(); });
-      });
-    }
+    });
+  }
 
     function renderProjectMarkers(){
       projectMarkers.forEach(m=>m.remove()); projectMarkers=[];
@@ -174,10 +262,7 @@
           const offsetDistance = 0.00015;
           const angle = (i * 360 / rows.length) * Math.PI / 180;
           const offsetLon = lon + Math.cos(angle) * offsetDistance * 0.6;
-
-          const zoomFactor = map.getZoom();
-          const northOffset = 0.00005 * (zoomFactor - 10);
-          const offsetLat = lat + Math.sin(angle) * offsetDistance * 1.4 + northOffset;
+          const offsetLat = lat + Math.sin(angle) * offsetDistance * 1.4;
 
           const lbl=r[labelField]||"?";
           const cl=statusColors[r.status]||"#888";
